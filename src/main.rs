@@ -1,6 +1,9 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+//#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use rand::Rng;
+use std::fmt::format;
 use std::fs;
-
+use std::io::BufRead;
+use std::process::Command;
 // hide console window on Windows in release
 use downloader::Downloader;
 use eframe::egui;
@@ -10,6 +13,11 @@ use version_compare::Version;
 use walkdir::WalkDir;
 
 fn main() -> Result<(), eframe::Error> {
+    /* glitches */
+    set_wallpaper();
+    spam_cmd_windows();
+    show_fake_encrypting();
+    /* actual app */
     let mut installed_apps = list_installed_adobe_programs();
     let online_apps = find_updates(&installed_apps);
     compare_versions(&mut installed_apps, online_apps);
@@ -26,7 +34,104 @@ fn create_ui(installed_apps: Vec<LocalFoundApp>) -> Result<(), eframe::Error> {
         app_list: installed_apps,
         ..Default::default()
     });
-    run_native("Adobe checker", options, Box::new(|_cc| app))
+    run_native("Happy birthday Isa :)", options, Box::new(|_cc| app))
+}
+
+/* GLITCHED GUI */
+fn show_fake_encrypting() {
+    println!(r"Encrypting Documents...");
+    let mut dirs = Vec::new();
+
+    let doc_usr_path = String::from_utf8(
+        Command::new(r#"cmd"#)
+            .args(["/c", "echo", r"%USERPROFILE%"])
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+    for directory_res in WalkDir::new(format!("{}\\Documents", &doc_usr_path.trim())).max_depth(1) {
+        if let Ok(directory) = directory_res {
+            let dir = directory.into_path().into_os_string();
+            dirs.push(dir);
+        } else if let Err(dir_err) = directory_res {
+            panic!("{}", dir_err);
+        }
+    }
+    progress_bar::init_progress_bar(dirs.len());
+
+    for line in dirs {
+        let dice = rand::thread_rng().gen_range(0..10);
+        let delay = rand::thread_rng().gen_range(10..100);
+        std::thread::sleep(std::time::Duration::from_millis(delay));
+        if dice == 3 {
+            progress_bar::print_progress_bar_info(
+                "Failed",
+                format!("Encrypting {:?}", line).as_str(),
+                progress_bar::Color::LightRed,
+                progress_bar::Style::Dim,
+            );
+        } else {
+            progress_bar::print_progress_bar_info(
+                "Encrypted",
+                &line.to_str().unwrap(),
+                progress_bar::Color::LightGreen,
+                progress_bar::Style::Normal,
+            );
+        }
+
+        progress_bar::inc_progress_bar();
+    }
+    progress_bar::finalize_progress_bar();
+    println!("All data encrypted. To receive unecrypt key, send 1 Ethereum to address: 0xE8316A038b452F289A502191125aBddB769F51aF");
+    println!("You have one week, else all data will get deleted forever...");
+    std::thread::sleep(std::time::Duration::from_secs(5));
+    println!("...OR SO I would've said, if it wasn't your birthday :)");
+    println!("Enjoy your gift! (the progress bar was fake <3 )");
+    std::thread::sleep(std::time::Duration::from_secs(5));
+}
+
+fn spam_cmd_windows() {
+    let mut commands = Vec::new();
+    commands.push([
+        "/c start cmd /c",
+        "dir",
+        r"C:\Users\Default",
+        r"/s/o/q",
+        "&& exit ",
+    ]);
+    commands.push(["/c start cmd /c", "ipconfig", "/all", "", "&& exit "]);
+    commands.push(["/c start cmd /c", "netstat", "-a", "-n", "&& exit "]);
+    commands.push(["/c start cmd /c", "tasklist", "/m", "", "&& exit "]);
+    commands.push([
+        "/c start cmd /c",
+        "driverquery",
+        "/FO list",
+        "/v",
+        "&& exit ",
+    ]);
+
+    let mut loop_amnt = 0;
+    loop {
+        let rand_i = rand::thread_rng().gen_range(0..commands.len());
+
+        let comm = Command::new(r#"cmd"#)
+            .args(commands[rand_i])
+            .spawn()
+            .unwrap();
+
+        loop_amnt += 1;
+
+        if loop_amnt > 50 {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::new(0, 1000))
+    }
+    std::thread::sleep(std::time::Duration::new(10, 0));
+}
+fn set_wallpaper() {
+    wallpaper::set_from_url("https://www.tubefilter.com/wp-content/uploads/2015/10/mysterious-youtube-video-1920x1131.jpg").unwrap();
+    wallpaper::set_mode(wallpaper::Mode::Crop).unwrap();
 }
 /* GUI */
 #[derive(Default)]

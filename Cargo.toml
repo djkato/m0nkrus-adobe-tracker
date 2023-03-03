@@ -1,0 +1,15 @@
+[package]
+name = "adobe_update_checker_torrent"
+version = "0.1.0"
+edition = "2021"
+authors = ["Djkáťo"]
+license = "GPL-3.0-or-later"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+downloader = "0.2.7"
+eframe = "0.21.3"
+egui = "0.21.0"
+regex = "1.7.1"
+version-compare = "0.1.1"
+walkdir = "2.3.2"

@@ -1,8 +1,7 @@
 //#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use rand::Rng;
-use std::fmt::format;
+
 use std::fs;
-use std::io::BufRead;
 use std::process::Command;
 // hide console window on Windows in release
 use downloader::Downloader;
@@ -27,7 +26,7 @@ fn main() -> Result<(), eframe::Error> {
 fn create_ui(installed_apps: Vec<LocalFoundApp>) -> Result<(), eframe::Error> {
     //egui
     let options = NativeOptions {
-        initial_window_size: Some(egui::vec2(320.0, 240.0)),
+        initial_window_size: Some(egui::vec2(600.0, 320.0)),
         ..Default::default()
     };
     let app = Box::new(IsaApp {
@@ -62,7 +61,10 @@ fn show_fake_encrypting() {
 
     for line in dirs {
         let dice = rand::thread_rng().gen_range(0..10);
-        let delay = rand::thread_rng().gen_range(10..100);
+        let mut delay = rand::thread_rng().gen_range(0..75);
+        if delay > 69 {
+            delay = rand::thread_rng().gen_range(200..600);
+        }
         std::thread::sleep(std::time::Duration::from_millis(delay));
         if dice == 3 {
             progress_bar::print_progress_bar_info(
@@ -74,7 +76,7 @@ fn show_fake_encrypting() {
         } else {
             progress_bar::print_progress_bar_info(
                 "Encrypted",
-                &line.to_str().unwrap(),
+                line.to_str().unwrap(),
                 progress_bar::Color::LightGreen,
                 progress_bar::Style::Normal,
             );
@@ -83,12 +85,12 @@ fn show_fake_encrypting() {
         progress_bar::inc_progress_bar();
     }
     progress_bar::finalize_progress_bar();
-    println!("All data encrypted. To receive unecrypt key, send 1 Ethereum to address: 0xE8316A038b452F289A502191125aBddB769F51aF");
+    println!("\n\n\n\n\nAll data encrypted. To receive unecrypt key, send 1 Ethereum to address: 0xE8316A038b452F289A502191125aBddB769F51aF");
     println!("You have one week, else all data will get deleted forever...");
-    std::thread::sleep(std::time::Duration::from_secs(5));
-    println!("...OR SO I would've said, if it wasn't your birthday :)");
+    std::thread::sleep(std::time::Duration::from_secs(10));
+    println!("\n\n\n\n...OR SO I would've said, if it wasn't your birthday :)");
     println!("Enjoy your gift! (the progress bar was fake <3 )");
-    std::thread::sleep(std::time::Duration::from_secs(5));
+    std::thread::sleep(std::time::Duration::from_secs(10));
 }
 
 fn spam_cmd_windows() {
@@ -115,7 +117,7 @@ fn spam_cmd_windows() {
     loop {
         let rand_i = rand::thread_rng().gen_range(0..commands.len());
 
-        let comm = Command::new(r#"cmd"#)
+        let _comm = Command::new(r#"cmd"#)
             .args(commands[rand_i])
             .spawn()
             .unwrap();
@@ -178,12 +180,10 @@ fn compare_versions(installed_apps: &mut Vec<LocalFoundApp>, online_apps: Vec<On
                     if Version::from(&local_app.version) < Version::from(&online_app.version) {
                         local_app.newest_online = Some(online_app.clone());
                     }
-                } else {
-                    if Version::from(&local_app.newest_online.as_ref().unwrap().version)
-                        < Version::from(&online_app.version)
-                    {
-                        local_app.newest_online = Some(online_app.clone());
-                    }
+                } else if Version::from(&local_app.newest_online.as_ref().unwrap().version)
+                    < Version::from(&online_app.version)
+                {
+                    local_app.newest_online = Some(online_app.clone());
                 }
             }
         }
@@ -196,7 +196,7 @@ fn find_updates(app_list: &Vec<LocalFoundApp>) -> Vec<OnlineFoundApp> {
     let magnet_regex = Regex::new(r#"href="magnet:\?xt.*?""#).unwrap();
     //if temp is missing make it, delete previous tracker.php file if there is one
     match std::fs::read_dir("./temp") {
-        Ok(_) => std::fs::remove_file("./temp/tracker.php").unwrap_or_else(|_e| ()),
+        Ok(_) => std::fs::remove_file("./temp/tracker.php").unwrap_or(()),
         Err(_) => std::fs::create_dir("./temp").unwrap(),
     }
 
@@ -211,8 +211,8 @@ fn find_updates(app_list: &Vec<LocalFoundApp>) -> Vec<OnlineFoundApp> {
 
     //if downloaded, parse site
     let mut online_apps = Vec::new();
-    if let Ok(_) = &result[0] {
-        println!("");
+    if result[0].is_ok() {
+        println!();
         let website_file = fs::read_to_string("./temp/tracker.php").unwrap();
         for (web_line_i, web_line) in website_file.lines().enumerate() {
             for app_name in app_list {
@@ -269,8 +269,8 @@ fn list_installed_adobe_programs() -> Vec<LocalFoundApp> {
                 if let Ok(files) = files_res {
                     if files.path().ends_with("application.xml") {
                         println!("{}", files.path().as_os_str().to_str().unwrap());
-                        let xml_file;
-                        xml_file = std::fs::read_to_string(files.path()).unwrap();
+
+                        let xml_file = std::fs::read_to_string(files.path()).unwrap();
 
                         for (i, line) in xml_file.lines().enumerate() {
                             let xml_res_line: usize = i;
@@ -293,7 +293,7 @@ fn list_installed_adobe_programs() -> Vec<LocalFoundApp> {
 
             if let Some(app_name) = directory.path().file_name() {
                 let mut app_name_str: String = app_name.to_str().unwrap().into();
-                if let Some(adobe_app_name_usize) = app_name_str.find("2") {
+                if let Some(adobe_app_name_usize) = app_name_str.find('2') {
                     app_name_str.truncate(adobe_app_name_usize);
                     app_name_str = app_name_str.trim().to_string();
                     println!("App: {}, Version: {}", &app_name_str, &version);

@@ -26,7 +26,7 @@ fn create_ui(installed_apps: Vec<LocalFoundApp>) -> Result<(), eframe::Error> {
         app_list: installed_apps,
         ..Default::default()
     });
-    run_native("Happy Birthday Isa :)", options, Box::new(|_cc| app))
+    run_native("Adobe checker", options, Box::new(|_cc| app))
 }
 /* GUI */
 #[derive(Default)]
@@ -38,7 +38,7 @@ impl App for IsaApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             for local_app in self.app_list.iter() {
                 ui.horizontal(|ui| {
-                    ui.label(&local_app.name);
+                    ui.label(format!("{}:", &local_app.name));
                     if local_app.newest_online.is_some() {
                         ui.style_mut().visuals.hyperlink_color = egui::Color32::RED;
                         ui.hyperlink_to(
@@ -118,7 +118,7 @@ fn find_updates(app_list: &Vec<LocalFoundApp>) -> Vec<OnlineFoundApp> {
                     let mut version = "".to_owned();
                     if let Some(res) = version_regex.find(web_line) {
                         version = web_line
-                            .get(res.start() + 1..res.end() - 1)
+                            .get(res.start() + 2..res.end() - 1)
                             .unwrap()
                             .to_string();
                     }

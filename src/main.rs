@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use std::fs;
+use std::path::PathBuf;
 
 // hide console window on Windows in release
 use downloader::Downloader;
@@ -10,98 +11,119 @@ use version_compare::Version;
 use walkdir::WalkDir;
 
 fn main() -> Result<(), eframe::Error> {
-    let mut installed_apps = find_local_programs();
-    /*let mut installed_apps: Vec<LocalFoundApp> = vec![
-        LocalFoundApp {
-            name: "Adobe After Effects".to_owned(),
-            version: "1.0.0".to_owned(),
-            newest_online: None,
-        },
-        LocalFoundApp {
-            name: "Adobe Premiere Pro".to_owned(),
-            version: "1.0.0".to_owned(),
-            newest_online: None,
-        },
-        LocalFoundApp {
-            name: "Adobe Photoshop".to_owned(),
-            version: "1.0.0".to_owned(),
-            newest_online: None,
-        },
-    ];*/
-    let mut online_apps = find_online_programs(&installed_apps);
-    compare_versions(&mut installed_apps, &mut online_apps);
-    create_ui(installed_apps, online_apps)
+    create_ui()
 }
 
-fn create_ui(
-    installed_apps: Vec<LocalFoundApp>,
-    online_apps: Vec<OnlineFoundApp>,
-) -> Result<(), eframe::Error> {
+fn create_ui() -> Result<(), eframe::Error> {
     //egui
     let options = NativeOptions {
         initial_window_size: Some(egui::vec2(320.0, 480.0)),
         ..Default::default()
     };
-    let app = Box::new(IsaApp {
-        local_app_list: installed_apps,
-        online_app_list: online_apps,
+    let app = Box::new(MonkrusApp {
+        local_app_list: None,
+        online_app_list: None,
+        path: None,
     });
     run_native("Adobe checker", options, Box::new(|_cc| app))
 }
 /* GUI */
 #[derive(Default)]
-struct IsaApp {
-    local_app_list: Vec<LocalFoundApp>,
-    online_app_list: Vec<OnlineFoundApp>,
+struct MonkrusApp {
+    local_app_list: Option<Vec<LocalFoundApp>>,
+    online_app_list: Option<Vec<OnlineFoundApp>>,
+    path: Option<PathBuf>,
 }
-impl App for IsaApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Updates");
-            ui.separator();
-            for local_app in self.local_app_list.iter() {
-                ui.horizontal(|ui| {
-                    ui.label(format!("{}:", &local_app.name));
-                    if local_app.newest_online.is_some() {
-                        ui.style_mut().visuals.hyperlink_color = egui::Color32::RED;
-                        ui.hyperlink_to(
-                            format!(
-                                "Found newer version! Current: {}, Newest: {}",
-                                local_app.version,
-                                local_app.newest_online.as_ref().unwrap().version.clone()
-                            ),
-                            local_app.newest_online.as_ref().unwrap().magnet.clone(),
-                        );
-                        ui.reset_style();
-                    } else {
-                        ui.style_mut().visuals.override_text_color = Some(egui::Color32::GREEN);
-                        ui.label(format!(
-                            "Version Up to date! Current:{}",
-                            &local_app.version
-                        ));
-                        ui.reset_style();
+impl App for MonkrusApp {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        if self.path.is_none() {
+            self.file_dialog_update(ctx, frame);
+            return;
+        }
+        let path = self.path.as_ref().unwrap();
+        if let Some(local_app_list) = self.local_app_list.as_mut() {
+            if let Some(online_app_list) = self.online_app_list.as_mut() {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    ui.heading("Updates");
+                    ui.separator();
+                    for local_app in local_app_list.iter() {
+                        ui.horizontal(|ui| {
+                            ui.label(format!("{}:", &local_app.name));
+                            if local_app.newest_online.is_some() {
+                                ui.style_mut().visuals.hyperlink_color = egui::Color32::RED;
+                                ui.hyperlink_to(
+                                    format!(
+                                        "Found newer version! Current: {}, Newest: {}",
+                                        local_app.version,
+                                        local_app.newest_online.as_ref().unwrap().version.clone()
+                                    ),
+                                    local_app.newest_online.as_ref().unwrap().magnet.clone(),
+                                );
+                                if ui.button("Copy").on_hover_text("Click to copy").clicked() {
+                                    ui.output_mut(|w| {
+                                        w.copied_text = local_app
+                                            .newest_online
+                                            .as_ref()
+                                            .unwrap()
+                                            .magnet
+                                            .clone();
+                                    });
+                                }
+                                ui.reset_style();
+                            } else {
+                                ui.style_mut().visuals.override_text_color =
+                                    Some(egui::Color32::GREEN);
+                                ui.label(format!(
+                                    "Version Up to date! Current:{}",
+                                    &local_app.version
+                                ));
+                                ui.reset_style();
+                            }
+                        });
                     }
-                });
-            }
-            ui.add_space(20.0);
-            ui.heading("Online found apps");
-            ui.separator();
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                for online_app in self.online_app_list.iter() {
-                    ui.horizontal(|ui| {
-                        ui.label(format!(
-                            "{}, version: {} ",
-                            online_app.name, &online_app.version
-                        ));
-                        ui.hyperlink_to("download", &online_app.magnet);
-                        ui.add_space(ui.available_width());
+                    ui.add_space(20.0);
+                    ui.heading("Online found apps");
+                    ui.separator();
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        for online_app in online_app_list.iter() {
+                            ui.horizontal(|ui| {
+                                ui.label(format!(
+                                    "{}, version: {} ",
+                                    online_app.name, &online_app.version
+                                ));
+                                ui.hyperlink_to("download", &online_app.magnet);
+                                if ui.button("Copy").on_hover_text("Click to copy").clicked() {
+                                    ui.output_mut(|w| {
+                                        w.copied_text = online_app.magnet.clone();
+                                    });
+                                }
+                                ui.add_space(ui.available_width());
+                            });
+                        }
                     });
+                });
+            } else {
+                self.online_app_list = Some(find_online_programs(&local_app_list));
+                compare_versions(local_app_list, self.online_app_list.as_mut().unwrap());
+            }
+        } else {
+            self.local_app_list = Some(find_local_programs(path));
+        }
+    }
+}
+impl MonkrusApp {
+    fn file_dialog_update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.vertical_centered_justified(|ui| {
+                ui.heading("Adobe folder location");
+                if ui.button("Select").clicked() {
+                    let path = rfd::FileDialog::new().pick_folder();
+                    self.path = path;
                 }
             });
         });
     }
 }
-
 /* COMPARE VERS */
 fn compare_versions(
     installed_apps: &mut Vec<LocalFoundApp>,
@@ -114,12 +136,10 @@ fn compare_versions(
                     if Version::from(&local_app.version) < Version::from(&online_app.version) {
                         local_app.newest_online = Some(online_app.clone());
                     }
-                } else {
-                    if Version::from(&local_app.newest_online.as_ref().unwrap().version)
-                        < Version::from(&online_app.version)
-                    {
-                        local_app.newest_online = Some(online_app.clone());
-                    }
+                } else if Version::from(&local_app.newest_online.as_ref().unwrap().version)
+                    < Version::from(&online_app.version)
+                {
+                    local_app.newest_online = Some(online_app.clone());
                 }
             }
         }
@@ -127,14 +147,14 @@ fn compare_versions(
 }
 
 /* SCAPER */
-fn find_online_programs(app_list: &Vec<LocalFoundApp>) -> Vec<OnlineFoundApp> {
+fn find_online_programs(_app_list: &Vec<LocalFoundApp>) -> Vec<OnlineFoundApp> {
     let version_brackets_regex = Regex::new(r"\(v.*?\)").unwrap();
     let version_bare_regex = Regex::new(r"v[.\d]* ").unwrap();
     let magnet_regex = Regex::new(r#"href="magnet:\?xt.*?""#).unwrap();
     let name_regex = Regex::new(r#"<b>Adobe .*<wbr>"#).unwrap();
     //if temp is missing make it, delete previous tracker.php file if there is one
     match std::fs::read_dir("./temp") {
-        Ok(_) => std::fs::remove_file("./temp/tracker.php").unwrap_or_else(|_e| ()),
+        Ok(_) => std::fs::remove_file("./temp/tracker.php").unwrap_or(()),
         Err(_) => std::fs::create_dir("./temp").unwrap(),
     }
 
@@ -149,8 +169,8 @@ fn find_online_programs(app_list: &Vec<LocalFoundApp>) -> Vec<OnlineFoundApp> {
 
     //if downloaded, parse site
     let mut online_apps = Vec::new();
-    if let Ok(_) = &result[0] {
-        println!("");
+    if result[0].is_ok() {
+        println!();
         let website_file = fs::read_to_string("./temp/tracker.php").unwrap();
         for (web_line_i, web_line) in website_file.lines().enumerate() {
             if web_line.to_ascii_lowercase().contains("adobe") {
@@ -174,7 +194,7 @@ fn find_online_programs(app_list: &Vec<LocalFoundApp>) -> Vec<OnlineFoundApp> {
                         version.pop();
                         version.pop();
                     }
-                } else if let Some(res) = version_bare_regex.find(&web_line) {
+                } else if let Some(res) = version_bare_regex.find(web_line) {
                     version = web_line
                         .get(res.start() + 1..res.end() - 1)
                         .unwrap()
@@ -195,7 +215,7 @@ fn find_online_programs(app_list: &Vec<LocalFoundApp>) -> Vec<OnlineFoundApp> {
                     }
                 }
                 println!("App: {}\nVersion: {}\nMagnet:{}\n", &name, &version, magnet);
-                let mut online_app = OnlineFoundApp {
+                let online_app = OnlineFoundApp {
                     name,
                     magnet,
                     version,
@@ -208,10 +228,10 @@ fn find_online_programs(app_list: &Vec<LocalFoundApp>) -> Vec<OnlineFoundApp> {
 }
 
 /* FILE BROWSER */
-fn find_local_programs() -> Vec<LocalFoundApp> {
+fn find_local_programs(path: &PathBuf) -> Vec<LocalFoundApp> {
     let version_regex = Regex::new(r#""\{\w*-\d*\.\d.*?-64-"#).unwrap();
     let mut apps = Vec::new();
-    for directory_res in WalkDir::new(r"C:\Program Files\Adobe").max_depth(1) {
+    for directory_res in WalkDir::new(path.as_path()).max_depth(1) {
         if let Ok(directory) = directory_res {
             let mut version = "".to_owned();
 
@@ -220,8 +240,8 @@ fn find_local_programs() -> Vec<LocalFoundApp> {
                 if let Ok(files) = files_res {
                     if files.path().ends_with("application.xml") {
                         println!("{}", files.path().as_os_str().to_str().unwrap());
-                        let xml_file;
-                        xml_file = std::fs::read_to_string(files.path()).unwrap();
+
+                        let xml_file = std::fs::read_to_string(files.path()).unwrap();
 
                         for (i, line) in xml_file.lines().enumerate() {
                             let xml_res_line: usize = i;
@@ -244,7 +264,7 @@ fn find_local_programs() -> Vec<LocalFoundApp> {
 
             if let Some(app_name) = directory.path().file_name() {
                 let mut app_name_str: String = app_name.to_str().unwrap().into();
-                if let Some(adobe_app_name_usize) = app_name_str.find("2") {
+                if let Some(adobe_app_name_usize) = app_name_str.find('2') {
                     app_name_str.truncate(adobe_app_name_usize);
                     app_name_str = app_name_str.trim().to_string();
                     println!("App: {}, Version: {}", &app_name_str, &version);

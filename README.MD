@@ -1,4 +1,4 @@
-#M0nkrus Adobe Tracker
+# M0nkrus Adobe Tracker
 a simple app that checks for updates for your locally installed (torrented) Adobe apps and provides M0nkrus magnets for downloads.
 
 Also provides a simple downloader for apps that are not installed.

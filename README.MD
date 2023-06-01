@@ -13,3 +13,4 @@ This programs Source code is free for you to read, and you can see yourself if t
 1. The app goes through your folder at `C:\Program Files\Adobe` and checks for installed apps. Tries to find the file `application.xml` and extract the program version information from there.
 2. Downloads the following page to a `./temp/` folder next to the .exe file: [http://rutracker.ru/tracker.php?pid=1334502](http://rutracker.ru/tracker.php?pid=1334502), then extracts latest app downloads.
 3. Compares the online version with local versions and provides a [magnet link](https://en.wikipedia.org/wiki/Magnet_URI_scheme) you can open with the torrent downloader app of your choise.
+![image](https://github.com/djkato/m0nkrus-adobe-tracker/assets/25299243/d43d634a-7efe-4403-b8c8-e9478cee88d9)
